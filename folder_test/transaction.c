@@ -1,12 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <openssl/sha.h>
 
 #define MAX_STRING_LENGTH 64
 
 enum{LEFT, RIGHT};
 
+//compile: gcc transaction.c -o a -lssl -lcrypto
 
+void ensureEven(char ***hashes, int *size);
+void generateMerkleRoot(char ***hashes, int *size);
 
 int main(){
     
@@ -59,10 +63,12 @@ int main(){
             }
 
             //Assign values to each string
-            snprintf(strings[i], 64, hashes[i], i);
+            snprintf(strings[i], 65, hashes[i], i);
     }
 
-    ensureEven(&strings, &size);
+    //ensureEven(&strings, &size);
+    generateMerkleRoot(&strings, &size);
+
 
     /*for (int i = 0; i < size; i++){
         printf("%s\n", strings[i]);
@@ -75,20 +81,78 @@ int main(){
 void ensureEven(char ***hashes, int *size){
     if((*size) % 2 != 0){
         *hashes = (char**)realloc(*hashes, sizeof(char*) * (*size+1));
-        (*hashes)[*size] = (char *)malloc(sizeof(char)*MAX_STRING_LENGTH+1);
+        (*hashes)[*size] = (char *)malloc(sizeof(char)*MAX_STRING_LENGTH);
         strcpy((*hashes)[*size],(*hashes)[*size-1]);
+        *size +=1;
     }
 }
 
 void generateMerkleRoot(char ***hashes, int *size){
-    if(!hashes || size == 0){
+    if(!(*hashes) || *size == 1){
         return;
     }
 
+
+
     ensureEven(hashes, size);
+    for (int i = 0; i < *size; i++){
+        //printf("%s\n", (*hashes)[i]);
+    }
+    char *result = (char*) malloc(2 * (MAX_STRING_LENGTH + 2) * sizeof(char));
+    unsigned char *mdrestemp = (char*) malloc((MAX_STRING_LENGTH + 2) * sizeof(char));
+    unsigned char *mdres = (char*) malloc((MAX_STRING_LENGTH + 2) * sizeof(char));
+    
+    printf("----------------------------------\n");
+    for(int i = 0; i < *size; i+=2){
+        
+        strcpy(result, (*hashes)[i]);
+        strcat(result, (*hashes)[i + 1]);
 
+        //printf("HASH 1:%s\nHASH 2:%s\n",(*hashes)[i],(*hashes)[i+1]);
+        
+        printf("Res: %s\n",result);
 
+        size_t array_len = strlen(result);
+        unsigned char md[SHA256_DIGEST_LENGTH];
+        //mdres='\0';
+        //mdrestemp='\0';
+        strcpy(mdres,"");
+        strcpy(mdrestemp,"");
 
+            SHA256_CTX c;
+            SHA256_Init(&c);
+            SHA256_Update(&c, (const void*) result, array_len);
+            SHA256_Final(md, &c);
+            //printf("MD: ");
+            for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+            //printf("%02x", md[i]);
+            sprintf(mdrestemp,"%02x",md[i]);
+            strcat(mdres,mdrestemp);
+    }
+
+    printf("MDRES: %s\n",mdres);
+    i == 0 ? strcpy((*hashes)[i],mdres) : strcpy((*hashes)[i/2],mdres);
+    strcpy(mdres,"");
+    //printf("\n");
+        
+    }
+
+    for (int i = 0; i < *size; i++){
+        //printf("%s\n", (*hashes)[i]);
+    }
+
+    for (int i = *size/2; i<*size; i++){
+        free((*hashes)[i]);
+    }
+    printf("\n_________\n");
+
+    *size = *size/2;
+
+    for (int i = 0; i < *size; i++){
+        printf("%s\n", (*hashes)[i]);
+    }
+
+    generateMerkleRoot(hashes, size);
 }
 
 

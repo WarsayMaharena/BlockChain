@@ -3,7 +3,7 @@
 #include <openssl/pem.h>
 #include <stdio.h>
 
-int generate_keys(){
+void generate_keys(){
 
     //Initializations of BIGNUMS
     RSA *rsa = RSA_new();
@@ -25,10 +25,15 @@ int generate_keys(){
     bp_private = BIO_new_file("private.pem", "w+");
 	PEM_write_bio_RSAPrivateKey(bp_private, rsa, NULL, NULL, 0, NULL, NULL);
 
-    BIGNUM_free(e);
+    
     RSA_free(rsa);
     BIO_free(bp_public);
     BIO_free(bp_private);
 
+}
+
+int main(){
+    generate_keys();
     return 0;
+
 }
