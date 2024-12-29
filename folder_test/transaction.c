@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <openssl/sha.h>
+//#include <bitcoin>
+//#include <bitches>
 
 #define MAX_STRING_LENGTH 64
 
@@ -11,7 +13,9 @@ enum{LEFT, RIGHT};
 
 void ensureEven(char ***hashes, int *size);
 void generateMerkleRoot(char ***hashes, int *size);
-
+void generateMerkleTree(char ***hashes, int *size);
+void generate(char ***hashes, int *size, char ****tree);
+void HashAndCombineHashes(char ***hashes, int *size);
 int main(){
     
     char hashes[21][64] = {
@@ -69,10 +73,10 @@ int main(){
     //ensureEven(&strings, &size);
     generateMerkleRoot(&strings, &size);
 
-
-    /*for (int i = 0; i < size; i++){
+    printf("LASTENDING\n");
+    for (int i = 0; i < size; i++){
         printf("%s\n", strings[i]);
-    }*/
+    }
 
     return 0;
 
@@ -87,6 +91,8 @@ void ensureEven(char ***hashes, int *size){
     }
 }
 
+//***hashes (a pointer to an array of strings) 
+//*size (the size of the array)
 void generateMerkleRoot(char ***hashes, int *size){
     if(!(*hashes) || *size == 1){
         return;
@@ -98,6 +104,30 @@ void generateMerkleRoot(char ***hashes, int *size){
     for (int i = 0; i < *size; i++){
         //printf("%s\n", (*hashes)[i]);
     }
+
+    HashAndCombineHashes(hashes,size);
+
+
+    for (int i = 0; i < *size; i++){
+        //printf("%s\n", (*hashes)[i]);
+    }
+
+    for (int i = *size/2; i<*size; i++){
+        free((*hashes)[i]);
+    }
+
+    printf("\n_________\n");
+
+    *size = *size/2;
+
+    for (int i = 0; i < *size; i++){
+        printf("%s\n", (*hashes)[i]);
+    }
+
+    generateMerkleRoot(hashes, size);
+}
+
+void HashAndCombineHashes(char ***hashes, int *size){
     char *result = (char*) malloc(2 * (MAX_STRING_LENGTH + 2) * sizeof(char));
     unsigned char *mdrestemp = (char*) malloc((MAX_STRING_LENGTH + 2) * sizeof(char));
     unsigned char *mdres = (char*) malloc((MAX_STRING_LENGTH + 2) * sizeof(char));
@@ -107,8 +137,6 @@ void generateMerkleRoot(char ***hashes, int *size){
         
         strcpy(result, (*hashes)[i]);
         strcat(result, (*hashes)[i + 1]);
-
-        //printf("HASH 1:%s\nHASH 2:%s\n",(*hashes)[i],(*hashes)[i+1]);
         
         printf("Res: %s\n",result);
 
@@ -130,31 +158,41 @@ void generateMerkleRoot(char ***hashes, int *size){
             strcat(mdres,mdrestemp);
     }
 
-    printf("MDRES: %s\n",mdres);
-    i == 0 ? strcpy((*hashes)[i],mdres) : strcpy((*hashes)[i/2],mdres);
-    strcpy(mdres,"");
+    //printf("MDRES: %s\n",mdres);
+    strcpy((*hashes)[i/2],mdres);
+    //strcpy(mdres,"");
     //printf("\n");
         
     }
-
-    for (int i = 0; i < *size; i++){
-        //printf("%s\n", (*hashes)[i]);
-    }
-
-    for (int i = *size/2; i<*size; i++){
-        free((*hashes)[i]);
-    }
-    printf("\n_________\n");
-
-    *size = *size/2;
-
-    for (int i = 0; i < *size; i++){
-        printf("%s\n", (*hashes)[i]);
-    }
-
-    generateMerkleRoot(hashes, size);
 }
 
+
+
+void generateMerkleTree(char ***hashes, int *size){
+        if(!(*hashes) || *size == 1){
+        return;
+    }
+
+    char ***tree = (char***) malloc(1 * sizeof(char**));
+    tree[0] = *hashes;
+    generate(hashes,size,&tree);
+
+
+
+}
+
+void generate(char ***hashes, int *size, char ****tree){
+    if(*size == 1){
+        return hashes;
+    }
+    ensureEven(hashes, size);
+    
+    
+
+
+
+
+}
 
 int check_size(){
 
