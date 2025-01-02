@@ -33,10 +33,11 @@ int main(){
 
     createArrayOfStrings(fptr,&new_string, &new_size);
 
-    generateMerkleRoot(&new_string, &new_size);
+    //generateMerkleRoot(&new_string, &new_size);
+    generateMerkleTree(&new_string,&new_size);
 
     printf("newstring size: %d\n", new_size);
-    
+
     for (int i = 0; i < new_size; i++){
         printf("%s\n", new_string[i]);
     }
@@ -129,13 +130,13 @@ void HashAndCombineHashes(char ***hashes, int *size){
     unsigned char *mdrestemp = (char*) malloc((MAX_STRING_LENGTH + 2) * sizeof(char));
     unsigned char *mdres = (char*) malloc((MAX_STRING_LENGTH + 2) * sizeof(char));
     
-    printf("----------------------------------\n");
+    //printf("----------------------------------\n");
     for(int i = 0; i < *size; i+=2){
         
         strcpy(result, (*hashes)[i]);
         strcat(result, (*hashes)[i + 1]);
         
-        printf("Res: %s\n",result);
+        //printf("Res: %s\n",result);
 
         size_t array_len = strlen(result);
         unsigned char md[SHA256_DIGEST_LENGTH];
@@ -172,32 +173,61 @@ void generateMerkleTree(char ***hashes, int *size){
 
     int sizeoftree = 1;
 
-    char ***tree = (char***) malloc(6 * sizeof(char**));
+    char ***tree = (char***) malloc(10 * sizeof(char**));
     
-    for(int i = 0; i < 6; i++){
-        tree[i] = (char**) malloc(21 * sizeof(char*));
-        for(int j = 0; j < *size; j++){
+    for(int i = 0; i < 10; i++){
+        tree[i] = (char**) malloc(*size * sizeof(char*));
+        for(int j = 0; j < 21; j++){
             tree[i][j] = (char**) malloc(MAX_STRING_LENGTH * sizeof(char*));
         }
     }
 
+    
     tree[0] = *hashes;
     generate(&sizeoftree, hashes,size,&tree);
-
-
-
 }
 
 void generate(int *sizeoftree, char ***hashes, int *size, char ****tree){
-    if(*size == 1){
-        return hashes;
-    }
-    ensureEven(hashes, size);
-    
-    HashAndCombineHashes(hashes,size);
-    tree[*sizeoftree] = *hashes;
-    *sizeoftree++;
 
-    generate(sizeoftree,hashes,size,tree);
+    int curr_cap = 10;
+    while(1){
+
+        //resize if tree isnt big enough
+        if(*sizeoftree == curr_cap){
+            *sizeoftree+=10;
+            *tree = (char***) realloc(*tree,*sizeoftree * sizeof(char**));
+            
+            for(int i = *sizeoftree; i < *sizeoftree; i++){
+                (*tree)[i] = (char**) malloc(*size * sizeof(char*));
+                for(int j = 0; j < 21; j++){
+                    tree[i][j] = (char**) malloc(MAX_STRING_LENGTH * sizeof(char*));
+                }
+            }
+        }
+
+        if(*size == 1){
+
+            break;
+        }
+        ensureEven(hashes, size);
+        for (int i = 0; i < *size; i++){
+            printf("%s\n", (*hashes)[i]);
+        }
+        printf("\n");
+        HashAndCombineHashes(hashes,size);
+
+        //free unused space
+        for (int i = *size/2; i<*size; i++){
+            free((*hashes)[i]);
+        }
+
+        *size = (*size)/2;
+        
+        //REMEMBER PARENTHESIS WHEN DEREFERENCING AND THEN INDEXING
+        (*tree)[*sizeoftree] = *hashes;
+        
+        *sizeoftree+=1;
+        printf("tree existss %s\n",(*tree)[5][0]);
+    }
 
 }
