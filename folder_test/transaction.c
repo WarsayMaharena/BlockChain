@@ -5,19 +5,30 @@
 //#include <bitcoin>
 //#include <bitches>
 
-#define MAX_STRING_LENGTH 64
+typedef enum {
+    LEFT,
+    RIGHT
+} Direction;
 
-enum{LEFT, RIGHT};
+
+
+typedef struct {
+    char *hash;
+    Direction direction;
+} MerkleProof;
+
+#define MAX_STRING_LENGTH 64
 
 //compile: gcc transaction.c -o a -lssl -lcrypto
 
 void ensureEven(char ***hashes, int *size);
 void generateMerkleRoot(char ***hashes, int *size);
-void generateMerkleTree(char ***hashes, int *size);
+void generateMerkleTree(char ***hashes, int *size, char ****tree, int *sizeoftree);
 void generate(int *sizeoftree, char ***hashes, int *size, char ****tree);
 void HashAndCombineHashes(char ***hashes, int *size);
 void createArrayOfStrings(FILE *file_ptr, char ***new_string, int *new_size);
-
+void generateMerkleProof(char* hash, char ***hashes, int *size, MerkleProof **merkleproof);
+Direction getLeafNodeDirectionMerkleTree(char *hash, char ****merkleTree, int *size, int *hashindex);
 
 
 int main(){
@@ -29,12 +40,17 @@ int main(){
 
     int new_size = 0;
 
+    char *hash = "41b637cfd9eb3e2f60f734f9ca44e5c1559c6f481d49d6ed6891f3e9a086ac78";
+
     FILE *fptr = fopen("textfile", "r");
 
     createArrayOfStrings(fptr,&new_string, &new_size);
 
     //generateMerkleRoot(&new_string, &new_size);
-    generateMerkleTree(&new_string,&new_size);
+    char ***tree = (char***) malloc(10 * sizeof(char**));
+    //generateMerkleTree(&new_string,&new_size,&tree);
+    MerkleProof *merkleproof;
+    generateMerkleProof(new_string[7],&new_string,&new_size,&merkleproof);
 
     printf("newstring size: %d\n", new_size);
 
@@ -71,7 +87,7 @@ void createArrayOfStrings(FILE *file_ptr, char ***new_String, int *new_size){
             col_counter++;
             if(curr_cap == col_counter){
                 curr_cap+=30;
-                (*new_String) = (char*) realloc((*new_String), curr_cap * sizeof(char*));
+                (*new_String) = (char**) realloc((*new_String), curr_cap * sizeof(char*));
             }
             (*new_String)[col_counter] = (char*) malloc((MAX_STRING_LENGTH+1) * sizeof(char));
             row_counter=0;
@@ -166,25 +182,24 @@ void HashAndCombineHashes(char ***hashes, int *size){
 
 
 
-void generateMerkleTree(char ***hashes, int *size){
+void generateMerkleTree(char ***hashes, int *size, char ****tree, int *sizeoftree){
     if(!(*hashes) || *size == 1){
         return;
     }
 
-    int sizeoftree = 1;
 
-    char ***tree = (char***) malloc(10 * sizeof(char**));
+    
     
     for(int i = 0; i < 10; i++){
-        tree[i] = (char**) malloc(*size * sizeof(char*));
+        (*tree)[i] = (char**) malloc(*size * sizeof(char*));
         for(int j = 0; j < 21; j++){
-            tree[i][j] = (char**) malloc(MAX_STRING_LENGTH * sizeof(char*));
+            (*tree)[i][j] = (char*) malloc(MAX_STRING_LENGTH * sizeof(char));
         }
     }
 
     
-    tree[0] = *hashes;
-    generate(&sizeoftree, hashes,size,&tree);
+    (*tree)[0] = *hashes;
+    generate(sizeoftree, hashes,size,tree);
 }
 
 void generate(int *sizeoftree, char ***hashes, int *size, char ****tree){
@@ -211,9 +226,9 @@ void generate(int *sizeoftree, char ***hashes, int *size, char ****tree){
         }
         ensureEven(hashes, size);
         for (int i = 0; i < *size; i++){
-            printf("%s\n", (*hashes)[i]);
+            //printf("%s\n", (*hashes)[i]);
         }
-        printf("\n");
+        //printf("\n");
         HashAndCombineHashes(hashes,size);
 
         //free unused space
@@ -227,7 +242,49 @@ void generate(int *sizeoftree, char ***hashes, int *size, char ****tree){
         (*tree)[*sizeoftree] = *hashes;
         
         *sizeoftree+=1;
-        printf("tree existss %s\n",(*tree)[5][0]);
+        printf("sizeoftree: %d\n",*sizeoftree);
+        //printf("tree existss %s\n",(*tree)[5][0]);
     }
+
+}
+
+Direction getLeafNodeDirectionMerkleTree(char *hash, char ****merkleTree, int *size, int *hashindex){
+    int index;
+    for(int i = 0; i < *size; i++){
+        if((*merkleTree)[0][i] == hash){
+            //printf("truesssssssssss?\n");
+            index=i;
+            *hashindex = i;
+        }
+    }
+    return index%2 == 0 ? LEFT : RIGHT;
+
+}
+
+void generateMerkleProof(char* hash, char ***hashes, int *size, MerkleProof **merkleproof){
+    if(!*(hashes) || *size==0){
+        return;
+    }
+    int sizeoftree = 1;
+    int hashindex;
+    int oldsize = *size;
+    char ***tree = (char***) malloc(10 * sizeof(char**));
+    generateMerkleTree(hashes,size,&tree, &sizeoftree);
+    int direction = getLeafNodeDirectionMerkleTree(hash,&tree,&oldsize, &hashindex);
+    //printf("directionsssss: %d\n", direction);
+    (*merkleproof) = (MerkleProof*) malloc(oldsize * sizeof(MerkleProof));
+    (*merkleproof)->hash = (char*) malloc(64 * sizeof(char));
+    (*merkleproof)[0].hash = hash;
+    (*merkleproof)[0].direction = direction;
+    printf("valueinhere: %d\n",sizeoftree);
+    for(int level = 0; level < sizeoftree - 1; level++){
+        int isLeftChild = hashindex % 2 == 0;
+        int siblingDirection = isLeftChild ? RIGHT : LEFT;
+        int siblingIndex = isLeftChild ? hashindex + 1 : hashindex - 1;
+        (*merkleproof)[level+1].hash = (*tree)[level][siblingIndex];
+        (*merkleproof)[level+1].direction = siblingDirection;
+        hashindex = hashindex/2; 
+    }
+    
 
 }
