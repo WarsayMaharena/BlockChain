@@ -5,6 +5,82 @@
 //#include <bitcoin>
 //#include <bitches>
 
+int fetch_transactions(char ***tr){
+    int size_of_array=20;
+    FILE *fptr = fopen("textfile","r");
+    (*tr) = (char **) malloc((size_of_array + 1) * sizeof(char*));
+
+    for(int i = 0; i <= size_of_array; i++){
+        (*tr)[i] = (char*) malloc(64 * sizeof(char));
+    }
+
+    (*tr)[size_of_array]=NULL;
+
+    char c;
+    int index_trans = 0;
+    int index_char = 0;
+    
+    printf("Hello\n");
+    while(1){
+        c = fgetc(fptr);
+        //printf("%c",c);
+        if(c==EOF){
+            //break if the file is at the end
+            return index_trans + 1;
+
+        } else if(index_trans == size_of_array){
+
+            //allocate more memory to the array if it is full:
+            (*tr) = (char **) realloc((*tr),(size_of_array + 11) * sizeof(char*));
+
+            for(int i = size_of_array; i <= (size_of_array + 10); i++){
+                
+                (*tr)[i] = (char*) malloc(64 * sizeof(char));
+            }
+            
+            (*tr)[size_of_array + 10]=NULL;
+
+            size_of_array+=10;
+
+            (*tr)[index_trans][index_char]=c;
+
+            index_char++;
+
+
+        } else if(c == '\n'){
+            printf("\n");
+            //new line means new transaction
+            index_trans++;
+            index_char = 0;
+            //printf("index_tr: %d index_char: %d sizeofarray: %d\n",index_trans,index_char,size_of_array);
+        } else {
+            //read a whole transaction
+            (*tr)[index_trans][index_char]=c;
+            index_char++;
+        }
+    }
+
+    return index_trans;
+
+}
+
+int main(){
+
+    
+    char **transactions;
+    //fetch all transactions from file
+    int size = fetch_transactions(&transactions);
+
+    
+
+    printf("outside %d\n",size);
+    for(int i=0; i<21; i++){
+        printf("%s\n",transactions[i]);
+    }
+    return 0;
+}
+
+/*
 typedef enum {
     LEFT,
     RIGHT
@@ -50,12 +126,17 @@ int main(){
     char ***tree = (char***) malloc(10 * sizeof(char**));
     //generateMerkleTree(&new_string,&new_size,&tree);
     MerkleProof *merkleproof;
-    generateMerkleProof(new_string[7],&new_string,&new_size,&merkleproof);
+    generateMerkleProof(new_string[4],&new_string,&new_size,&merkleproof);
 
     printf("newstring size: %d\n", new_size);
 
     for (int i = 0; i < new_size; i++){
         printf("%s\n", new_string[i]);
+    }
+
+    for (int i = 0; i < new_size; i++){
+        printf("hash: %s\n", merkleproof[i].hash);
+        printf("direction: %d\n", merkleproof[i].direction);
     }
     
     return 0;
@@ -189,7 +270,7 @@ void generateMerkleTree(char ***hashes, int *size, char ****tree, int *sizeoftre
 
 
     
-    
+    int old_size = *size;
     for(int i = 0; i < 10; i++){
         (*tree)[i] = (char**) malloc(*size * sizeof(char*));
         for(int j = 0; j < 21; j++){
@@ -199,7 +280,20 @@ void generateMerkleTree(char ***hashes, int *size, char ****tree, int *sizeoftre
 
     
     (*tree)[0] = *hashes;
+    for(int i=0; i < 21; i++){
+        //printf("hash: %s\n", (*hashes)[i]);
+        (*tree)[0][i] = (*hashes)[i];
+       // printf("hashtree: %s \n", (*tree)[0][i]);
+    }
     generate(sizeoftree, hashes,size,tree);
+    printf("hello \n");
+    for(int i = 0; i < 21; i++){
+       // printf("hash: %s \n", (*tree)[0][0]);
+    }
+
+    for(int i = 0; i < 21/2; i++){
+     //   printf("2hash: %s \n", (*tree)[1][0]);
+    }
 }
 
 void generate(int *sizeoftree, char ***hashes, int *size, char ****tree){
@@ -209,6 +303,7 @@ void generate(int *sizeoftree, char ***hashes, int *size, char ****tree){
 
         //resize if tree isnt big enough
         if(*sizeoftree == curr_cap){
+            printf("heresss\n");
             *sizeoftree+=10;
             *tree = (char***) realloc(*tree,*sizeoftree * sizeof(char**));
             
@@ -228,8 +323,34 @@ void generate(int *sizeoftree, char ***hashes, int *size, char ****tree){
         for (int i = 0; i < *size; i++){
             //printf("%s\n", (*hashes)[i]);
         }
+        
         //printf("\n");
         HashAndCombineHashes(hashes,size);
+
+    for(int i=0; i < *size; i++){
+        //printf("hash: %s\n", (*hashes)[i]);
+        //printf("sizeoftree: %d\n", *sizeoftree);
+        (*tree)[*sizeoftree-1][i] = (*hashes)[i];
+        //printf("hashtreeinside: %s \n", (*tree)[*sizeoftree-1][i]);
+    }
+    for(int i = 0; i < 22; i++){
+        printf("0hash: %s \n", (*tree)[0][i]);
+    }
+    for(int i = 0; i < 12; i++){
+        printf("1hash: %s \n", (*tree)[1][i]);
+    }
+    for(int i = 0; i < 6; i++){
+        printf("2hash: %s \n", (*tree)[2][i]);
+    }
+    for(int i = 0; i < 4; i++){
+        printf("3hash: %s \n", (*tree)[3][i]);
+    }
+        for(int i = 0; i < 2; i++){
+        printf("4hash: %s \n", (*tree)[4][i]);
+    }
+    for(int i = 0; i < 1; i++){
+        printf("5hash: %s \n", (*tree)[5][i]);
+    }
 
         //free unused space
         for (int i = *size/2; i<*size; i++){
@@ -239,11 +360,17 @@ void generate(int *sizeoftree, char ***hashes, int *size, char ****tree){
         *size = (*size)/2;
         
         //REMEMBER PARENTHESIS WHEN DEREFERENCING AND THEN INDEXING
-        (*tree)[*sizeoftree] = *hashes;
+        //(*tree)[*sizeoftree] = *hashes;
+
         
         *sizeoftree+=1;
         printf("sizeoftree: %d\n",*sizeoftree);
         //printf("tree existss %s\n",(*tree)[5][0]);
+
+    }
+
+    for(int i = 0; i < 21; i++){
+        //printf("hash: %s \n", (*tree)[0][0]);
     }
 
 }
@@ -281,10 +408,11 @@ void generateMerkleProof(char* hash, char ***hashes, int *size, MerkleProof **me
         int isLeftChild = hashindex % 2 == 0;
         int siblingDirection = isLeftChild ? RIGHT : LEFT;
         int siblingIndex = isLeftChild ? hashindex + 1 : hashindex - 1;
-        (*merkleproof)[level+1].hash = (*tree)[level][siblingIndex];
+        (*merkleproof)[level+1].hash = tree[level][siblingIndex];
         (*merkleproof)[level+1].direction = siblingDirection;
+        //printf("hash %s\n",tree[level][siblingIndex]);
+        //printf("direction %d\n",siblingDirection);
         hashindex = hashindex/2; 
     }
-    
 
-}
+} */
