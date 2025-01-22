@@ -4,6 +4,19 @@
 #include <openssl/sha.h>
 //#include <bitcoin>
 //#include <bitches>
+#define MAX_STRING_LENGTH 64
+
+typedef enum {
+    LEFT,
+    RIGHT
+} Direction;
+
+
+
+typedef struct {
+    char *hash;
+    Direction direction;
+} MerkleProof;
 
 int fetch_transactions(char ***tr){
     int size_of_array=20;
@@ -20,12 +33,17 @@ int fetch_transactions(char ***tr){
     int index_trans = 0;
     int index_char = 0;
     
-    printf("Hello\n");
+    //printf("Hello\n");
     while(1){
         c = fgetc(fptr);
-        //printf("%c",c);
+        printf("%c",c);
         if(c==EOF){
             //break if the file is at the end
+            for(int i = index_trans + 1; i < size_of_array; i++){
+                free((*tr)[i]);
+            }
+            (*tr)[index_trans + 1] = NULL;
+
             return index_trans + 1;
 
         } else if(index_trans == size_of_array){
@@ -33,7 +51,7 @@ int fetch_transactions(char ***tr){
             //allocate more memory to the array if it is full:
             (*tr) = (char **) realloc((*tr),(size_of_array + 11) * sizeof(char*));
 
-            for(int i = size_of_array; i <= (size_of_array + 10); i++){
+            for(int i = size_of_array; i < (size_of_array + 10); i++){
                 
                 (*tr)[i] = (char*) malloc(64 * sizeof(char));
             }
@@ -60,7 +78,158 @@ int fetch_transactions(char ***tr){
         }
     }
 
-    return index_trans;
+    
+
+}
+
+void HashAndCombineHashes(char ***hashes, int *size){
+    char *result = (char*) malloc((2 * MAX_STRING_LENGTH + 1) * sizeof(char));
+    unsigned char *mdrestemp = (char*) malloc((MAX_STRING_LENGTH + 1) * sizeof(char));
+    unsigned char *mdres = (char*) malloc((MAX_STRING_LENGTH + 1) * sizeof(char));
+    
+    //printf("----------------------------------\n");
+    for(int i = 0; i < *size; i+=2){
+        
+        strcpy(result, (*hashes)[i]);
+        strcat(result, (*hashes)[i + 1]);
+        //printf("HASH %s\n",(*hashes)[i + 1]);
+        result[2 * MAX_STRING_LENGTH] = NULL;
+        //printf("Res: %s\n",result);
+
+        size_t array_len = strlen(result);
+        unsigned char md[SHA256_DIGEST_LENGTH];
+        //mdres='\0';
+        //mdrestemp='\0';
+        strcpy(mdres,"");
+        strcpy(mdrestemp,"");
+
+        SHA256_CTX c;
+        SHA256_Init(&c);
+        SHA256_Update(&c, (const void*) result, array_len);
+        SHA256_Final(md, &c);
+        //printf("MD: ");
+        for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        //printf("%02x", md[i]);
+        sprintf(mdrestemp,"%02x",md[i]);
+        strcat(mdres,mdrestemp);
+    }
+    //printf("\n");
+
+    //printf("MDRES: %s\n",mdres);
+    strcpy((*hashes)[i/2],mdres);
+    //strcpy(mdres,"");
+    //printf("\n");
+    }
+
+    for(int i = *size/2; i < *size; i++){
+        free((*hashes)[i]);
+    }
+    //ONLY SET NULL AFTER YOU HAVE FREED MEMORY, OTHERWISE MEMORY LEAKS WILL HAPPEN.
+    (*hashes)[*size/2] = NULL;
+
+    *size = *size/2;
+}
+
+void ensureEven(char ***hashes, int *size){
+    if(*size == 1){
+
+    }else if((*size) % 2 != 0){
+        *hashes = (char**)realloc(*hashes, sizeof(char*) * (*size+1));
+        (*hashes)[*size] = (char *)malloc(sizeof(char)*MAX_STRING_LENGTH);
+        strcpy((*hashes)[*size],(*hashes)[*size-1]);
+        *size +=1;
+    }
+}
+
+//***hashes (a pointer to an array of strings) 
+//*size (the size of the array)
+void generateMerkleRoot(char ***hashes, int *size){
+    if(!(*hashes) || *size == 1){
+        return;
+    }
+
+
+
+    ensureEven(hashes, size);
+    for (int i = 0; i < *size; i++){
+        //printf("%s\n", (*hashes)[i]);
+    }
+
+    HashAndCombineHashes(hashes,size);
+
+
+    for (int i = 0; i < *size; i++){
+        //printf("%s\n", (*hashes)[i]);
+    }
+
+   // printf("\n_________\n");
+
+    
+
+    for (int i = 0; i < *size; i++){
+        //printf("%s\n", (*hashes)[i]);
+    }
+
+    generateMerkleRoot(hashes, size);
+}
+
+int generateMerkleTree(char ****tree, int *size, char ***trans){
+    int tree_level = 0;
+    int tree_cap = 20;
+    (*tree) = (char ***) malloc((tree_cap + 1)* sizeof(char**));
+    (*tree)[tree_cap] = NULL;
+
+    if((*trans)[0] == NULL){
+        return -1;
+    }
+    printf("BANANA\n");
+    while(1){
+        
+
+        ensureEven(trans, size);
+
+        (*tree)[tree_level] = (char**) malloc((*size + 1) * sizeof(char*));
+        (*tree)[tree_level][*size] = NULL;
+
+        printf("TREELEVELSIZE: %d\n", tree_level);
+
+        for(int i = 0; i < *size; i++){
+            (*tree)[tree_level][i] = (char *) malloc((MAX_STRING_LENGTH) * sizeof(char));
+            
+            for(int j = 0; j < 64; j++){
+                (*tree)[tree_level][i][j] = (*trans)[i][j];
+                printf("%c", (*tree)[tree_level][i][j]);
+            }
+
+            printf("\n--\n");
+        }
+
+        //printf("%c",(*tree)[tree_level][*size][0]);
+        if(!(*trans) || *size == 1){
+            break;
+        }
+        HashAndCombineHashes(trans, size);
+        tree_level++;
+
+
+    }
+}
+
+Direction getLeafNodeDirectionInMerkleTree(char *hash, char ****merkleTree, int *size){
+    for(int i = 0; i < *size; i++){
+        if(memcmp(hash,(*merkleTree)[0][i],64)){
+            int hashIndex = i;
+            return hashIndex % 2 == 0 ? LEFT : RIGHT;
+            }
+        }
+
+    }
+     
+    
+
+void generateMerkleProof(char ****tree, int tree_levels, char *hash, MerkleProof **m_p){
+
+    //(*m_p)[]
 
 }
 
@@ -69,14 +238,42 @@ int main(){
     
     char **transactions;
     //fetch all transactions from file
+    printf("HELLO\n");
     int size = fetch_transactions(&transactions);
+    int oldsize = size;
+    int tree_levels;
 
-    
+   
+
+    //ensureEven(&transactions,&size);
+    printf("HELLO\n");
+        for(int i=0; i<21; i++){
+        printf("%s\n",transactions[i]);
+    }
+    //HashAndCombineHashes(&transactions,&size);
+    printf("HELLO\n");
+    //generateMerkleRoot(&transactions, &size);
+
+    char ***merkletree;
+
+    tree_levels = generateMerkleTree(&merkletree,&size,&transactions);
+
+    //getLeafNodeDirectionInMerkleTree(merkletree[0][1],&merkletree,&size);
+
+    MerkleProof *merkproof = (MerkleProof *) malloc((tree_levels + 1) * sizeof(MerkleProof));
+
+    for(int i = 0; i < tree_levels + 1; i++){
+        merkproof->hash = (char *) malloc(MAX_STRING_LENGTH * sizeof(char));
+    }
+
+    generateMerkleProof(&merkletree, tree_levels, merkletree[0][1], &merkproof);
 
     printf("outside %d\n",size);
     for(int i=0; i<21; i++){
-        printf("%s\n",transactions[i]);
+        printf("%s\n",merkletree[0][i]);
     }
+
+    printf("%s\n",merkletree[5][0]);
     return 0;
 }
 
