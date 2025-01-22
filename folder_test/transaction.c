@@ -184,6 +184,9 @@ int generateMerkleTree(char ****tree, int *size, char ***trans){
     }
     printf("BANANA\n");
     while(1){
+        if(tree_level == tree_cap){
+
+        }
         
 
         ensureEven(trans, size);
@@ -193,14 +196,15 @@ int generateMerkleTree(char ****tree, int *size, char ***trans){
 
         printf("TREELEVELSIZE: %d\n", tree_level);
 
-        for(int i = 0; i < *size; i++){
-            (*tree)[tree_level][i] = (char *) malloc((MAX_STRING_LENGTH) * sizeof(char));
-            
-            for(int j = 0; j < 64; j++){
-                (*tree)[tree_level][i][j] = (*trans)[i][j];
-                printf("%c", (*tree)[tree_level][i][j]);
-            }
 
+
+        for(int i = 0; i < *size; i++){
+            printf("hash %s\n",(*tree)[tree_level][i]);
+            if((*tree)[tree_level][i] == NULL){
+                printf("ERROR NULL\n");
+            }
+            (*tree)[tree_level][i] = (char *) malloc((MAX_STRING_LENGTH) * sizeof(char));
+            memcpy((*tree)[tree_level][i],(*trans)[i],64);
             printf("\n--\n");
         }
 
@@ -225,11 +229,28 @@ Direction getLeafNodeDirectionInMerkleTree(char *hash, char ****merkleTree, int 
 
     }
      
+
+
+void generateMerkleProof(char ****tree, int tree_levels, char *hash, MerkleProof **m_p,int *size){
+    int hashIndex;
+    memcpy((*m_p)[0].hash,hash,64);
+    (*m_p)[0].direction = getLeafNodeDirectionInMerkleTree(hash,tree,size);
     
+    for(int i = 0; i < *size; i++){
+        if(memcmp(hash,(*tree)[0][i],64)){
+            hashIndex = i;
+        }
+    }
 
-void generateMerkleProof(char ****tree, int tree_levels, char *hash, MerkleProof **m_p){
+    for(int level = 0; level < tree_levels - 1; level++) {
+        int isLeftChild = hashIndex % 2 == 0;
+        int siblingDirection = isLeftChild ? RIGHT : LEFT;
+        int siblingIndex = isLeftChild ? hashIndex + 1 : hashIndex - 1;
+        memcpy((*m_p)[level + 1].hash,(*tree)[level][siblingIndex],64);
+        (*m_p)[level + 1].direction = siblingDirection;
+        hashIndex = hashIndex / 2;
+    }
 
-    //(*m_p)[]
 
 }
 
@@ -263,14 +284,19 @@ int main(){
     MerkleProof *merkproof = (MerkleProof *) malloc((tree_levels + 1) * sizeof(MerkleProof));
 
     for(int i = 0; i < tree_levels + 1; i++){
-        merkproof->hash = (char *) malloc(MAX_STRING_LENGTH * sizeof(char));
+        merkproof[i].hash = (char *) malloc(MAX_STRING_LENGTH * sizeof(char));
     }
 
-    generateMerkleProof(&merkletree, tree_levels, merkletree[0][1], &merkproof);
+    generateMerkleProof(&merkletree, tree_levels, merkletree[0][1], &merkproof,&oldsize);
+    printf("HELLO tree_levels %d\n", tree_levels);
 
     printf("outside %d\n",size);
     for(int i=0; i<21; i++){
         printf("%s\n",merkletree[0][i]);
+    }
+
+    for(int i=0; i<10; i++){
+        printf("%s\n",merkletree[1][i]);
     }
 
     printf("%s\n",merkletree[5][0]);
